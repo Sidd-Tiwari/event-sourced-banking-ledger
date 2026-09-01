@@ -76,6 +76,12 @@ public class AccountController {
         return AccountView.from(queryService.getCurrentState(accountId));
     }
 
+    /** Fast path: reads the async-updated projection instead of replaying the event store. */
+    @GetMapping("/{id}/balance")
+    public java.math.BigDecimal getBalance(@PathVariable("id") UUID accountId) {
+        return queryService.getFastBalance(accountId);
+    }
+
     @GetMapping("/{id}/state")
     public AccountView getStateAsOf(@PathVariable("id") UUID accountId,
                                      @RequestParam("asOf") Instant asOf) {

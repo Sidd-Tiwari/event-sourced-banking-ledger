@@ -1,5 +1,6 @@
 package com.example.ledger.infrastructure.persistence;
 
+import com.example.ledger.infrastructure.outbox.OutboxRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,10 +28,12 @@ public class EventStore {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
+    private final OutboxRepository outboxRepository;
 
-    public EventStore(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+    public EventStore(JdbcTemplate jdbc, ObjectMapper objectMapper, OutboxRepository outboxRepository) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
+        this.outboxRepository = outboxRepository;
     }
 
     @Transactional
@@ -60,6 +63,12 @@ public class EventStore {
         } catch (DuplicateKeyException e) {
             throw new ConcurrentModificationException(aggregateId, expectedSequenceNumber);
         }
+
+        // Same transaction as the insert above (default REQUIRED propagation) -
+        // this is the outbox pattern: the event and the "publish this" record
+        // are committed atomically, so there's no window where one exists
+        // without the other.
+        outboxRepository.insert(eventId, aggregateId, newSequenceNumber, eventType, payloadJson, metadataJson);
 
         return new StoredEvent(0L, eventId, aggregateId, aggregateType, newSequenceNumber,
                 eventType, eventVersion, payloadJson, metadataJson, now);
