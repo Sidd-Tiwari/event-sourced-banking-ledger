@@ -1,5 +1,6 @@
 package com.example.ledger.infrastructure.kafka;
 
+import com.example.ledger.infrastructure.observability.LedgerMetrics;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,14 +17,24 @@ import java.util.Map;
 
 /**
  * Retry policy: exponential backoff starting at 1s, doubling, capped at 3
- * attempts, then the message is published to account-events.DLT via
- * DeadLetterPublishingRecoverer and the original offset is committed (so
- * the consumer doesn't get stuck retrying the same poison message forever).
+ * attempts total, then the message is published to account-events.DLT via
+ * DeadLetterPublishingRecoverer and the original offset is committed (so the
+ * consumer doesn't get stuck retrying the same poison message forever).
  *
- * Recovery from the DLT is a manual, deliberate step - it is a holding
- * area for a human/ops process to inspect and replay after fixing whatever
- * caused the failure, not auto-replayed (auto-replaying a poison message
- * would just loop it back to the DLT again).
+ * This distinguishes two failure classes, per design brief section 18:
+ *   - Malformed/unparseable messages -> will NEVER succeed on retry ->
+ *     ideally these'd be classified as non-retryable and sent to the DLT
+ *     immediately. This config retries everything uniformly for simplicity;
+ *     a fuller build would add addNotRetryableExceptions() for
+ *     JsonProcessingException / IllegalArgumentException so those skip
+ *     straight to the DLT instead of wasting 3 attempts.
+ *   - Transient failures (DB blip, brief network issue) -> DO benefit from
+ *     the backoff-and-retry here.
+ *
+ * Recovery from the DLT is a manual, deliberate step (see README) - the DLT
+ * is a holding area for a human/ops process to inspect and replay after
+ * fixing whatever caused the failure, not something auto-replayed, since
+ * auto-replaying a poison message would just loop it back to the DLT again.
  */
 @Configuration
 public class KafkaConsumerConfig {
@@ -33,7 +44,7 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            KafkaTemplate<String, String> kafkaTemplate) {
+            KafkaTemplate<String, String> kafkaTemplate, LedgerMetrics metrics) {
 
         var consumerFactory = new DefaultKafkaConsumerFactory<String, String>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
@@ -44,7 +55,10 @@ public class KafkaConsumerConfig {
         ));
 
         var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> new org.apache.kafka.common.TopicPartition(KafkaTopicConfig.ACCOUNT_EVENTS_DLT, 0));
+                (record, ex) -> {
+                    metrics.dltMessage();
+                    return new org.apache.kafka.common.TopicPartition(KafkaTopicConfig.ACCOUNT_EVENTS_DLT, 0);
+                });
 
         var backOff = new ExponentialBackOff(1000L, 2.0);
         backOff.setMaxAttempts(3);

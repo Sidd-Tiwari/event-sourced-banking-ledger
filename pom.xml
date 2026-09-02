@@ -13,9 +13,9 @@
 
     <groupId>com.example</groupId>
     <artifactId>event-sourced-ledger</artifactId>
-    <version>0.1.0</version>
+    <version>0.6.0-phases1-6</version>
     <name>event-sourced-ledger</name>
-    <description>Event-Sourced Ledger with Time-Travel Queries</description>
+    <description>Event-Sourced Ledger with Time-Travel Queries - Phases 1-6 (domain, event store, Kafka+outbox, snapshots, security, resilience, observability)</description>
 
     <properties>
         <java.version>17</java.version>
@@ -95,6 +95,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Observability -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
         <dependency>
