@@ -5,6 +5,7 @@ import com.example.ledger.infrastructure.persistence.ConcurrentModificationExcep
 import com.example.ledger.interfaces.rest.dto.Dtos.ApiError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -13,6 +14,15 @@ import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException e) {
+        // Deliberately generic message - never confirm/deny WHY access was
+        // denied (e.g. "account exists but isn't yours" vs "role insufficient"),
+        // since that distinction itself can leak information to an attacker
+        // probing for valid account IDs.
+        return error(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "You do not have permission to perform this action");
+    }
 
     @ExceptionHandler(ConcurrentModificationException.class)
     public ResponseEntity<ApiError> handleConcurrency(ConcurrentModificationException e) {
@@ -45,6 +55,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception e) {
+        // Deliberately generic - never leak stack traces / internals to the client.
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred");
     }
 

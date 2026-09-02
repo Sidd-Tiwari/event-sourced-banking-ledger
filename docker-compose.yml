@@ -54,6 +54,7 @@ services:
       DB_USERNAME: ledger
       DB_PASSWORD: ledger
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-this-is-a-demo-secret-only}
     ports:
       - "8080:8080"
 

@@ -31,6 +31,10 @@ spring:
 outbox:
   poll-interval-ms: 1000
 
+jwt:
+  secret: ${JWT_SECRET:change-me-in-production-this-is-a-demo-secret-only-not-for-real-use}
+  ttl-minutes: ${JWT_TTL_MINUTES:60}
+
 server:
   port: ${SERVER_PORT:8080}
 
