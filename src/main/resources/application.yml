@@ -35,6 +35,28 @@ jwt:
   secret: ${JWT_SECRET:change-me-in-production-this-is-a-demo-secret-only-not-for-real-use}
   ttl-minutes: ${JWT_TTL_MINUTES:60}
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      notificationService:
+        max-attempts: 3
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+  timelimiter:
+    instances:
+      notificationService:
+        timeout-duration: 1s
+
 server:
   port: ${SERVER_PORT:8080}
 
